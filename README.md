@@ -10,3 +10,4 @@
 
 - This program was only desgined to convert from mp4 files to stacked .tiff files.
 - Video2Tiff supports batch processsing.
+- Please ensure there are *no spaces in the directory names*. Otherwise it will not process the files.

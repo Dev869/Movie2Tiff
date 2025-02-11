@@ -1,21 +1,24 @@
 import ffmpeg
 import os
-os.environ["TKDND_LIBRARY"] = "/Users/devinwilson/anaconda3/lib/python3.11/site-packages/tkinterdnd2/tkdnd"
 import shutil
 from PIL import Image
 import numpy as np
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from tkinterdnd2 import TkinterDnD, DND_FILES  # Import the tkinterdnd2 module
+from tkinterdnd2 import TkinterDnD, DND_FILES
 
 def convert_mp4_to_tiff(mp4_files):
     for mp4_file in mp4_files:
         try:
             # Ensure file path is properly formatted (handles spaces and special characters)
-            mp4_file = mp4_file.strip().strip("{}")  # Remove curly braces from paths (common in drag-and-drop)
+            original_mp4_file = mp4_file.strip().strip("{}")  # Remove curly braces from paths (common in drag-and-drop)
             mp4_file = mp4_file.replace("\\", "/")  # Ensure proper path format
 
-            if not os.path.isfile(mp4_file) or not mp4_file.lower().endswith(".mp4"):
+            # Debug: Print the final file path being processed
+            print(f"Processing file: {mp4_file}")
+
+            # Check if the file exists and is an MP4 file
+            if not os.path.isfile(original_mp4_file) or not mp4_file.lower().endswith(".mp4"):
                 print(f"Skipping invalid file: {mp4_file}")
                 continue  # Skip non-MP4 files
 
@@ -71,12 +74,14 @@ def convert_mp4_to_tiff(mp4_files):
 
     messagebox.showinfo("Success", "All MP4 files processed successfully!")
 
-
 def handle_drag_and_drop(event):
     # Get the dragged file paths
     file_paths = event.data.strip().strip("{}").split()  # Handles multiple files by splitting on spaces
 
     valid_files = [fp.replace("\\", "/") for fp in file_paths if fp.lower().endswith(".mp4")]
+
+    # Debugging: Print file paths before processing
+    print(f"Valid MP4 files: {valid_files}")
 
     if valid_files:
         convert_mp4_to_tiff(valid_files)
