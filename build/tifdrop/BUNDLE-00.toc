@@ -1,0 +1,3 @@
+([('TifDrop',
+   '/Users/devinwilson/Documents/tifdrop/dist/TifDrop',
+   'EXECUTABLE')],)
