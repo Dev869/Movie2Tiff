@@ -8,5 +8,5 @@
 ## USAGE
 **To Open** : While in the Video2Tiff Directory, run `python tiffdrop.py`
 
--> This program was only desgined to convert from mp4 files to stacked .tiff files.
--> Video2Tiff supports batch processsing.
+- This program was only desgined to convert from mp4 files to stacked .tiff files.
+- Video2Tiff supports batch processsing.
