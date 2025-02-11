@@ -3,67 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video2Tiff - MP4 to TIFF Converter</title>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        #output { margin-top: 20px; }
-    </style>
+    <title>Video2Tiff Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg.js/0.10.1/ffmpeg.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>Video2Tiff - MP4 to TIFF Converter</h1>
-    <input type="file" id="fileInput" accept="video/mp4">
-    <button onclick="convert()">Convert</button>
-    <div id="output"></div>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-6">
+    
+    <h1 class="text-3xl font-bold mb-6">🎥 Video2Tiff Converter</h1>
+    
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-lg text-center">
+        <label for="videoInput" class="cursor-pointer block p-6 border-2 border-dashed border-gray-600 rounded-lg hover:border-blue-500 transition">
+            <p class="text-lg">Drag & Drop Videos Here</p>
+            <p class="text-sm text-gray-400">(or click to select files)</p>
+            <input type="file" id="videoInput" multiple accept="video/mp4" class="hidden">
+        </label>
+        <button onclick="convertVideos()" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg transition">
+            Convert Videos
+        </button>
+        
+        <progress id="progressBar" value="0" max="100" class="w-full mt-4 hidden"></progress>
+        <p id="status" class="mt-2 text-sm text-gray-400"></p>
+        
+        <div id="downloadLinks" class="mt-4 text-left"></div>
+        <button id="downloadZip" onclick="downloadZip()" class="mt-4 w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg transition hidden">
+            Download All as ZIP
+        </button>
+    </div>
 
     <script>
-        async function convert() {
-            const { createFFmpeg, fetchFile } = FFmpeg;
-            const ffmpeg = createFFmpeg({ log: true });
+        const zip = new JSZip();
+        let processedFiles = 0;
+        let totalFiles = 0;
 
-            const fileInput = document.getElementById('fileInput').files[0];
-            if (!fileInput) {
-                alert("Please select an MP4 file!");
+        document.getElementById('videoInput').addEventListener('change', () => {
+            document.getElementById('status').textContent = `${event.target.files.length} file(s) selected`;
+        });
+
+        async function convertVideos() {
+            const files = document.getElementById('videoInput').files;
+            if (files.length === 0) {
+                alert("Please select at least one video file.");
                 return;
             }
 
-            const outputDiv = document.getElementById('output');
-            outputDiv.innerHTML = "Loading FFmpeg...";
+            const statusDiv = document.getElementById('status');
+            const downloadDiv = document.getElementById('downloadLinks');
+            const progressBar = document.getElementById('progressBar');
+            const downloadZipBtn = document.getElementById('downloadZip');
 
-            try {
-                if (!ffmpeg.isLoaded()) {
-                    await ffmpeg.load();
-                }
-                
-                outputDiv.innerHTML = "Processing video...";
-                console.log("FFmpeg loaded. Processing:", fileInput.name);
+            statusDiv.textContent = "Processing...";
+            downloadDiv.innerHTML = "";
+            progressBar.style.display = "block";
+            progressBar.value = 0;
+            processedFiles = 0;
+            totalFiles = files.length;
+            zip.files = {}; // Reset ZIP
 
-                const filename = "input.mp4";
-                ffmpeg.FS('writeFile', filename, await fetchFile(fileInput));
-
-                await ffmpeg.run('-i', filename, 'frame_%04d.tiff');
-
-                const frameFiles = ffmpeg.FS('readdir', '/').filter(f => f.endsWith('.tiff'));
-
-                outputDiv.innerHTML = "Conversion complete! Download frames below:<br>";
-
-                frameFiles.forEach(frame => {
-                    const data = ffmpeg.FS('readFile', frame);
-                    const blob = new Blob([data.buffer], { type: 'image/tiff' });
-                    const url = URL.createObjectURL(blob);
-
+            for (const file of files) {
+                statusDiv.textContent = `Processing ${file.name}...`;
+                const tiffBlob = await convertVideoToTiff(file);
+                if (tiffBlob) {
                     const link = document.createElement('a');
-                    link.href = url;
-                    link.download = frame;
-                    link.textContent = `Download ${frame}`;
-                    outputDiv.appendChild(document.createElement('br'));
-                    outputDiv.appendChild(link);
-                });
-            } catch (error) {
-                console.error("Error during conversion:", error);
-                outputDiv.innerHTML = "Error: Could not process the video.";
+                    link.href = URL.createObjectURL(tiffBlob);
+                    link.download = file.name.replace('.mp4', '.tiff');
+                    link.className = "block text-blue-400 hover:underline mt-2";
+                    link.textContent = `Download ${file.name.replace('.mp4', '.tiff')}`;
+                    downloadDiv.appendChild(link);
+
+                    // Add to ZIP
+                    zip.file(file.name.replace('.mp4', '.tiff'), tiffBlob);
+                }
+                processedFiles++;
+                progressBar.value = (processedFiles / totalFiles) * 100;
             }
+
+            statusDiv.textContent = "Conversion completed!";
+            progressBar.style.display = "none";
+            downloadZipBtn.style.display = "block";
+        }
+
+        async function convertVideoToTiff(file) {
+            const ffmpeg = await createFFmpeg({ log: true });
+            await ffmpeg.load();
+
+            ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+            await ffmpeg.run('-i', file.name, '-vsync', '0', 'output.tiff');
+            const tiffData = ffmpeg.FS('readFile', 'output.tiff');
+
+            return new Blob([tiffData.buffer], { type: 'image/tiff' });
+        }
+
+        function downloadZip() {
+            zip.generateAsync({ type: "blob" }).then(content => {
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(content);
+                link.download = "Converted_TIFFs.zip";
+                link.click();
+            });
         }
     </script>
+
 </body>
 </html>
