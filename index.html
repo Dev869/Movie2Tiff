@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie 2 TIFF</title>
+    <title>Video2Tiff - MP4 to TIFF Converter</title>
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
@@ -11,7 +11,7 @@
     </style>
 </head>
 <body>
-    <h1>Movie2TIFF - MP4 to TIFF Converter</h1>
+    <h1>Video2Tiff - MP4 to TIFF Converter</h1>
     <input type="file" id="fileInput" accept="video/mp4">
     <button onclick="convert()">Convert</button>
     <div id="output"></div>
@@ -20,7 +20,6 @@
         async function convert() {
             const { createFFmpeg, fetchFile } = FFmpeg;
             const ffmpeg = createFFmpeg({ log: true });
-            await ffmpeg.load();
 
             const fileInput = document.getElementById('fileInput').files[0];
             if (!fileInput) {
@@ -29,27 +28,41 @@
             }
 
             const outputDiv = document.getElementById('output');
-            outputDiv.innerHTML = "Processing...";
+            outputDiv.innerHTML = "Loading FFmpeg...";
 
-            const filename = "input.mp4";
-            ffmpeg.FS('writeFile', filename, await fetchFile(fileInput));
+            try {
+                if (!ffmpeg.isLoaded()) {
+                    await ffmpeg.load();
+                }
+                
+                outputDiv.innerHTML = "Processing video...";
+                console.log("FFmpeg loaded. Processing:", fileInput.name);
 
-            await ffmpeg.run('-i', filename, 'frame_%04d.tiff');
+                const filename = "input.mp4";
+                ffmpeg.FS('writeFile', filename, await fetchFile(fileInput));
 
-            const frameFiles = ffmpeg.FS('readdir', '/').filter(f => f.endsWith('.tiff'));
+                await ffmpeg.run('-i', filename, 'frame_%04d.tiff');
 
-            frameFiles.forEach(frame => {
-                const data = ffmpeg.FS('readFile', frame);
-                const blob = new Blob([data.buffer], { type: 'image/tiff' });
-                const url = URL.createObjectURL(blob);
+                const frameFiles = ffmpeg.FS('readdir', '/').filter(f => f.endsWith('.tiff'));
 
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = frame;
-                link.textContent = `Download ${frame}`;
-                outputDiv.appendChild(document.createElement('br'));
-                outputDiv.appendChild(link);
-            });
+                outputDiv.innerHTML = "Conversion complete! Download frames below:<br>";
+
+                frameFiles.forEach(frame => {
+                    const data = ffmpeg.FS('readFile', frame);
+                    const blob = new Blob([data.buffer], { type: 'image/tiff' });
+                    const url = URL.createObjectURL(blob);
+
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = frame;
+                    link.textContent = `Download ${frame}`;
+                    outputDiv.appendChild(document.createElement('br'));
+                    outputDiv.appendChild(link);
+                });
+            } catch (error) {
+                console.error("Error during conversion:", error);
+                outputDiv.innerHTML = "Error: Could not process the video.";
+            }
         }
     </script>
 </body>
