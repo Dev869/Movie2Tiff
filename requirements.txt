@@ -1,0 +1,6 @@
+ffmpeg-python
+Pillow
+numpy
+tkinterdnd2
+shutil
+os
