@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie 2 TIFF</title>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        #output { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Movie2TIFF - MP4 to TIFF Converter</h1>
+    <input type="file" id="fileInput" accept="video/mp4">
+    <button onclick="convert()">Convert</button>
+    <div id="output"></div>
+
+    <script>
+        async function convert() {
+            const { createFFmpeg, fetchFile } = FFmpeg;
+            const ffmpeg = createFFmpeg({ log: true });
+            await ffmpeg.load();
+
+            const fileInput = document.getElementById('fileInput').files[0];
+            if (!fileInput) {
+                alert("Please select an MP4 file!");
+                return;
+            }
+
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = "Processing...";
+
+            const filename = "input.mp4";
+            ffmpeg.FS('writeFile', filename, await fetchFile(fileInput));
+
+            await ffmpeg.run('-i', filename, 'frame_%04d.tiff');
+
+            const frameFiles = ffmpeg.FS('readdir', '/').filter(f => f.endsWith('.tiff'));
+
+            frameFiles.forEach(frame => {
+                const data = ffmpeg.FS('readFile', frame);
+                const blob = new Blob([data.buffer], { type: 'image/tiff' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = frame;
+                link.textContent = `Download ${frame}`;
+                outputDiv.appendChild(document.createElement('br'));
+                outputDiv.appendChild(link);
+            });
+        }
+    </script>
+</body>
+</html>
